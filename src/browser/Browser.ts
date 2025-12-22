@@ -37,10 +37,47 @@ class Browser {
 
             const engineName = 'chromium' // current hard-coded engine
             this.bot.log(this.bot.isMobile, 'BROWSER', `Launching ${engineName} (headless=${headless})`) // explicit engine log
+
+            // Auto-detect system Chromium on Termux or other unsupported platforms
+            let chromiumPath = process.env.CHROMIUM_PATH
+            if (!chromiumPath) {
+                const { execSync } = await import('child_process')
+                const commonPaths = [
+                    '/data/data/com.termux/files/usr/bin/chromium-browser',  // Termux
+                    '/usr/bin/chromium-browser',                               // Linux
+                    '/usr/bin/chromium',                                       // Linux alt
+                    '/usr/bin/google-chrome',                                  // Linux Chrome
+                ]
+                
+                for (const path of commonPaths) {
+                    try {
+                        execSync(`test -x "${path}"`, { stdio: 'ignore' })
+                        chromiumPath = path
+                        this.bot.log(this.bot.isMobile, 'BROWSER', `Auto-detected system Chromium at: ${chromiumPath}`, 'log')
+                        break
+                    } catch { /* continue */ }
+                }
+                
+                // Try 'which' as fallback
+                if (!chromiumPath) {
+                    try {
+                        chromiumPath = execSync('which chromium-browser || which chromium || which google-chrome', { encoding: 'utf8' }).trim()
+                        if (chromiumPath) {
+                            this.bot.log(this.bot.isMobile, 'BROWSER', `Found system Chromium via 'which': ${chromiumPath}`, 'log')
+                        }
+                    } catch { /* no system browser found */ }
+                }
+            }
+            
+            if (chromiumPath) {
+                this.bot.log(this.bot.isMobile, 'BROWSER', `Using system Chromium at: ${chromiumPath}`, 'log')
+            }
+
             browser = await playwright.chromium.launch({
                 // Optional: uncomment to use Edge instead of Chromium
                 // channel: 'msedge',
                 headless,
+                ...(chromiumPath ? { executablePath: chromiumPath } : {}),
                 ...(proxy.url && { proxy: { username: proxy.username, password: proxy.password, server: `${proxy.url}:${proxy.port}` } }),
                 args: [
                     '--no-sandbox',
