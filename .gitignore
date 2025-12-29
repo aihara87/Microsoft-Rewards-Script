@@ -1,5 +1,7 @@
 sessions/
 dist/
+ref/
+backup/
 .dev/
 node_modules/
 src/accounts.json

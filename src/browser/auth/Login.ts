@@ -21,6 +21,7 @@ type LoginState =
     | '2FA_TOTP'
     | 'LOGIN_PASSWORDLESS'
     | 'GET_A_CODE'
+    | 'CODE_ENTRY'
     | 'UNKNOWN'
     | 'CHROMEWEBDATA_ERROR'
 
@@ -162,7 +163,8 @@ export class Login {
             check('[data-testid="tile"]:has(svg path[d*="M11.78 10.22a.75.75"])', 'SIGN_IN_ANOTHER_WAY'),
             check('[data-testid="deviceShieldCheckmarkVideo"]', 'LOGIN_PASSWORDLESS'),
             check('input[name="otc"]', '2FA_TOTP'),
-            check('form[name="OneTimeCodeViewForm"]', '2FA_TOTP')
+            check('form[name="OneTimeCodeViewForm"]', '2FA_TOTP'),
+            check('[data-testid="codeEntry"]', 'CODE_ENTRY')
         ])
 
         // Get a code
@@ -214,6 +216,7 @@ export class Login {
         if (foundStates.includes('SIGN_IN_ANOTHER_WAY')) return 'SIGN_IN_ANOTHER_WAY'
         if (foundStates.includes('LOGIN_PASSWORDLESS')) return 'LOGIN_PASSWORDLESS'
         if (foundStates.includes('2FA_TOTP')) return '2FA_TOTP'
+        if (foundStates.includes('CODE_ENTRY')) return 'CODE_ENTRY'
 
         const mainState = foundStates[0] as LoginState
 
@@ -335,6 +338,15 @@ export class Login {
             case 'LOGIN_PASSWORDLESS': {
                 this.bot.logger.info(this.bot.isMobile, 'LOGIN', 'Handling passwordless authentication')
                 await this.passwordlessLogin.handle(page)
+                await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})
+                return true
+            }
+
+            case 'CODE_ENTRY': {
+                this.bot.logger.info(this.bot.isMobile, 'LOGIN', 'Code entry screen detected, clicking "Use your password"')
+                // Click "Use your password" link in the footer
+                const usePasswordSelector = '[data-testid="viewFooter"] span[role="button"]'
+                await this.bot.browser.utils.ghostClick(page, usePasswordSelector)
                 await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})
                 return true
             }
