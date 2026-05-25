@@ -5,6 +5,12 @@ import { BrowserFingerprintWithHeaders, FingerprintGenerator } from 'fingerprint
 import type { MicrosoftRewardsBot } from '../index'
 import { loadSessionData, saveFingerprintData } from '../util/Load'
 import { UserAgentManager } from './UserAgent'
+import {
+    createBrowserArgs,
+    getExternalBrowserErrorContext,
+    resolveBrowserExecutablePath,
+    validateBrowserExecutablePath
+} from './BrowserLaunchOptions'
 
 import type { Account, AccountProxy } from '../interface/Account'
 
@@ -45,7 +51,11 @@ class Browser {
 
     async createBrowser(account: Account): Promise<BrowserCreationResult> {
         let browser: rebrowser.Browser
+        const browserExecutablePath = resolveBrowserExecutablePath(this.bot.config)
+
         try {
+            validateBrowserExecutablePath(browserExecutablePath)
+
             const proxyConfig = account.proxy.url
                 ? {
                       server: this.formatProxyServer(account.proxy),
@@ -57,14 +67,21 @@ class Browser {
                   }
                 : undefined
 
+            const browserArgs = createBrowserArgs(Browser.BROWSER_ARGS, this.bot.config, browserExecutablePath)
+
             browser = await rebrowser.chromium.launch({
                 headless: this.bot.config.headless,
+                ...(browserExecutablePath && { executablePath: browserExecutablePath }),
                 ...(proxyConfig && { proxy: proxyConfig }),
-                args: [...Browser.BROWSER_ARGS]
+                args: browserArgs
             })
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error)
-            this.bot.logger.error(this.bot.isMobile, 'BROWSER', `Launch failed: ${errorMessage}`)
+            this.bot.logger.error(
+                this.bot.isMobile,
+                'BROWSER',
+                `Launch failed: ${errorMessage}${getExternalBrowserErrorContext(browserExecutablePath)}`
+            )
             throw error
         }
 
