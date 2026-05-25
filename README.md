@@ -12,6 +12,9 @@
 ## Table of Contents
 
 - [Quick Setup](#quick-setup)
+    - [Bare metal](#bare-metal)
+    - [Termux](#termux)
+    - [Docker](#docker)
 - [Nix Setup](#nix-setup)
 - [Configuration Options](#configuration-options)
 - [Account Setup](#account-setup)
@@ -56,6 +59,75 @@ Copy, rename, and edit your account and configuration files before deploying the
 npm run pre-build
 npm run build
 npm run start
+```
+
+### Termux
+
+**Requirements:** Termux, Node.js >= 24, Git, and Chromium from the Termux X11 repository.
+
+Termux uses the Chromium package installed by `pkg`. Do not run `npm run pre-build` on Termux because that command runs `npx patchright install chromium` for desktop-style managed browser installs.
+
+#### Install Termux packages
+
+```bash
+pkg update
+pkg install nodejs git x11-repo chromium
+```
+
+#### Get the script
+
+```bash
+git clone https://github.com/TheNetsky/Microsoft-Rewards-Script.git
+cd Microsoft-Rewards-Script
+```
+
+#### Create account and config files
+
+```bash
+cp src/accounts.example.json src/accounts.json
+cp src/config.example.json src/config.json
+```
+
+Edit `src/accounts.json` and `src/config.json` before building.
+
+For headless Termux runs, set `headless` to `true` in `src/config.json`.
+
+#### Point the script at Termux Chromium
+
+Use an environment variable:
+
+```bash
+export CHROMIUM_PATH="$(which chromium-browser)"
+```
+
+Or set the path in `src/config.json`:
+
+```json
+"browserExecutablePath": "/data/data/com.termux/files/usr/bin/chromium-browser",
+"browserArgs": ["--disable-gpu"]
+```
+
+#### Build and run on Termux
+
+```bash
+npm install
+npm run build
+npm run start
+```
+
+You can also use:
+
+```bash
+npm run setup:termux
+npm run start
+```
+
+#### Manual session opener on Termux
+
+`npm run open-session` opens a visible browser with `headless: false`. On Termux this may require Termux:X11, VNC, or another display environment:
+
+```bash
+CHROMIUM_PATH="$(which chromium-browser)" npm run open-session -- -email you@example.com
 ```
 
 ### Docker
@@ -106,16 +178,18 @@ Edit `config.json` to customize behavior, or set `CONFIG_*` environment variable
 
 ### Core
 
-| Setting                    | Type    | Default                      | Description                           | Docker environment variable       |
-| -------------------------- | ------- | ---------------------------- | ------------------------------------- | --------------------------------- |
-| `baseURL`                  | string  | `"https://rewards.bing.com"` | Microsoft Rewards base URL            |                                   |
-| `sessionPath`              | string  | `"sessions"`                 | Directory to store browser sessions   |                                   |
-| `headless`                 | boolean | `false`                      | Run browser invisibly                 | Always `true` in Docker           |
-| `clusters`                 | number  | `1`                          | Number of concurrent account clusters | `CONFIG_CLUSTERS`                 |
-| `errorDiagnostics`         | boolean | `false`                      | Enable error diagnostics              | `CONFIG_ERROR_DIAGNOSTICS`        |
-| `ensureStreakProtection`   | boolean | `true`                       | Ensures streak protection is enabled  | `CONFIG_ENSURE_STREAK_PROTECTION` |
-| `searchOnBingLocalQueries` | boolean | `false`                      | Use local query list                  | `CONFIG_SEARCH_ON_BING_LOCAL`     |
-| `globalTimeout`            | string  | `"30sec"`                    | Timeout for all actions               | `CONFIG_GLOBAL_TIMEOUT`           |
+| Setting                    | Type     | Default                      | Description                                                | Docker environment variable       |
+| -------------------------- | -------- | ---------------------------- | ---------------------------------------------------------- | --------------------------------- |
+| `baseURL`                  | string   | `"https://rewards.bing.com"` | Microsoft Rewards base URL                                 |                                   |
+| `sessionPath`              | string   | `"sessions"`                 | Directory to store browser sessions                        |                                   |
+| `headless`                 | boolean  | `false`                      | Run browser invisibly                                      | Always `true` in Docker           |
+| `browserExecutablePath`    | string   | `""`                         | Path to an existing Chromium executable, useful for Termux |                                   |
+| `browserArgs`              | string[] | `[]`                         | Extra Chromium launch args appended to defaults            |                                   |
+| `clusters`                 | number   | `1`                          | Number of concurrent account clusters                      | `CONFIG_CLUSTERS`                 |
+| `errorDiagnostics`         | boolean  | `false`                      | Enable error diagnostics                                   | `CONFIG_ERROR_DIAGNOSTICS`        |
+| `ensureStreakProtection`   | boolean  | `true`                       | Ensures streak protection is enabled                       | `CONFIG_ENSURE_STREAK_PROTECTION` |
+| `searchOnBingLocalQueries` | boolean  | `false`                      | Use local query list                                       | `CONFIG_SEARCH_ON_BING_LOCAL`     |
+| `globalTimeout`            | string   | `"30sec"`                    | Timeout for all actions                                    | `CONFIG_GLOBAL_TIMEOUT`           |
 
 ### Workers
 
