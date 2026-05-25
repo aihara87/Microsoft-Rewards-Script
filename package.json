@@ -9,6 +9,8 @@
     },
     "scripts": {
         "pre-build": "npm i && rimraf dist && npx patchright install chromium",
+        "pre-build:termux": "npm i && rimraf dist",
+        "setup:termux": "npm run pre-build:termux && npm run build",
         "build": "rimraf dist && tsc",
         "start": "node ./dist/index.js",
         "ts-start": "ts-node ./src/index.ts",
