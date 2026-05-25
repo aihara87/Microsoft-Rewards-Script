@@ -2,6 +2,8 @@ export interface Config {
     baseURL: string
     sessionPath: string
     headless: boolean
+    browserExecutablePath?: string
+    browserArgs?: string[]
     clusters: number
     errorDiagnostics: boolean
     ensureStreakProtection: boolean
