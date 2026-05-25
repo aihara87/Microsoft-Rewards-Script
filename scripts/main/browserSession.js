@@ -15,11 +15,29 @@ import {
     loadCookies,
     loadFingerprint,
     buildProxyConfig,
+    resolveBrowserExecutablePath,
+    mergeBrowserArgs,
+    validateBrowserExecutablePath,
+    getExternalBrowserErrorContext,
     setupCleanupHandlers
 } from '../utils.js'
 
 const __dirname = getDirname(import.meta.url)
 const projectRoot = getProjectRoot(__dirname)
+const BROWSER_ARGS = [
+    '--no-sandbox',
+    '--mute-audio',
+    '--disable-setuid-sandbox',
+    '--ignore-certificate-errors',
+    '--ignore-certificate-errors-spki-list',
+    '--ignore-ssl-errors',
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--disable-user-media-security=true',
+    '--disable-blink-features=Attestation',
+    '--disable-features=WebAuthentication,PasswordManagerOnboarding,PasswordManager,EnablePasswordsAccountStorage,Passkeys',
+    '--disable-save-password-bubble'
+]
 
 const args = parseArgs()
 args.dev = args.dev || false
@@ -108,24 +126,23 @@ async function main() {
     log('INFO', `  Proxy: ${proxy ? 'Yes' : 'No'}`)
     log('INFO', 'Launching browser...')
 
-    const browser = await chromium.launch({
-        headless: false,
-        ...(proxy ? { proxy } : {}),
-        args: [
-            '--no-sandbox',
-            '--mute-audio',
-            '--disable-setuid-sandbox',
-            '--ignore-certificate-errors',
-            '--ignore-certificate-errors-spki-list',
-            '--ignore-ssl-errors',
-            '--no-first-run',
-            '--no-default-browser-check',
-            '--disable-user-media-security=true',
-            '--disable-blink-features=Attestation',
-            '--disable-features=WebAuthentication,PasswordManagerOnboarding,PasswordManager,EnablePasswordsAccountStorage,Passkeys',
-            '--disable-save-password-bubble'
-        ]
-    })
+    const browserExecutablePath = resolveBrowserExecutablePath(config)
+    validateBrowserExecutablePath(browserExecutablePath)
+    const browserArgs = mergeBrowserArgs(BROWSER_ARGS, config, browserExecutablePath)
+
+    let browser
+    try {
+        browser = await chromium.launch({
+            headless: false,
+            ...(browserExecutablePath ? { executablePath: browserExecutablePath } : {}),
+            ...(proxy ? { proxy } : {}),
+            args: browserArgs
+        })
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        log('ERROR', `Browser launch failed: ${errorMessage}${getExternalBrowserErrorContext(browserExecutablePath)}`)
+        process.exit(1)
+    }
 
     let context
     if (fingerprint) {

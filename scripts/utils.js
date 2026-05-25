@@ -22,6 +22,71 @@ export function log(level, ...args) {
     console.log(`[${level}]`, ...args)
 }
 
+const TERMUX_PATH_PREFIX = '/data/data/com.termux/'
+const TERMUX_BROWSER_ARGS = ['--disable-gpu']
+const EXECUTABLE_PATH_ENV_VARS = ['CHROMIUM_PATH', 'BROWSER_EXECUTABLE_PATH']
+
+export function resolveBrowserExecutablePath(config = {}) {
+    const configuredPath = typeof config.browserExecutablePath === 'string' ? config.browserExecutablePath.trim() : ''
+    if (configuredPath) {
+        return configuredPath
+    }
+
+    for (const envVar of EXECUTABLE_PATH_ENV_VARS) {
+        const envPath = process.env[envVar]?.trim()
+        if (envPath) {
+            return envPath
+        }
+    }
+
+    return undefined
+}
+
+export function isTermuxBrowserEnvironment(executablePath) {
+    return Boolean(process.env.TERMUX_VERSION) || Boolean(executablePath?.startsWith(TERMUX_PATH_PREFIX))
+}
+
+export function mergeBrowserArgs(baseArgs, config = {}, executablePath) {
+    const args = [...baseArgs]
+
+    if (isTermuxBrowserEnvironment(executablePath)) {
+        args.push(...TERMUX_BROWSER_ARGS)
+    }
+
+    if (Array.isArray(config.browserArgs)) {
+        for (const arg of config.browserArgs) {
+            if (typeof arg !== 'string') continue
+
+            const normalizedArg = arg.trim()
+            if (normalizedArg) {
+                args.push(normalizedArg)
+            }
+        }
+    }
+
+    return [...new Set(args)]
+}
+
+export function validateBrowserExecutablePath(executablePath) {
+    if (!executablePath || fs.existsSync(executablePath)) {
+        return
+    }
+
+    log('ERROR', `Browser executable path not found: ${executablePath}`)
+    log('ERROR', 'On Termux, install Chromium with: pkg install x11-repo chromium')
+    log('ERROR', 'Verify the browser path with: which chromium-browser')
+    log('ERROR', 'Set CHROMIUM_PATH or config.browserExecutablePath to the verified path')
+    process.exit(1)
+}
+
+export function getExternalBrowserErrorContext(executablePath) {
+    if (!executablePath) {
+        return ''
+    }
+
+    return ` External Chromium executable: ${executablePath}. On Termux this uses the Chromium package installed by pkg; Patchright can still fail if the external browser version is incompatible.`
+}
+
 export function parseArgs(argv = process.argv.slice(2)) {
     const args = {}
 
